@@ -1,492 +1,304 @@
 /* ============================================
-   DOWNLOAD FLOW - STATE MANAGEMENT
+   NICUE VN - PROFESSIONAL APPLICATION CORE
+   Version: 1.0.0
    ============================================ */
 
-const downloadFlow = {
-  currentStep: 1,
-  completed: {
-    subscribe: false,
-    like: false,
-    comment: false
-  },
+'use strict';
 
-  init() {
-    this.setupEventListeners();
-    this.showStep(1);
-  },
+/* ============================================
+   CONFIGURATION & CONSTANTS
+   ============================================ */
 
-  setupEventListeners() {
-    const subscribeBtn = document.getElementById('subscribeBtn');
-    if (subscribeBtn) {
-      subscribeBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.handleSubscribe();
-      });
-    }
+const CONFIG = {
+  version: '1.0.0',
+  app_name: 'NiCue VN',
+  debug: false,
+  api_timeout: 5000,
+  cache_duration: 3600000, // 1 hour
+  toast_duration: 3500,
+  animation_duration: 300,
+  debounce_delay: 300,
+  throttle_delay: 100,
+};
 
-    const likeBtn = document.getElementById('likeBtn');
-    if (likeBtn) {
-      likeBtn.addEventListener('click', () => this.handleLike());
-    }
+const SELECTORS = {
+  navbar: '#navbar',
+  navToggle: '#navToggle',
+  navMenu: '#navMenu',
+  navLink: '.nav-link',
+  backToTop: '#backToTop',
+  toast: '#toast',
+  heroStats: '.hero-stats',
+  downloadFlow: '.download-flow',
+  downloadStep: '.download-step',
+  subscribeBtn: '#subscribeBtn',
+  likeBtn: '#likeBtn',
+  commentBtn: '#commentBtn',
+  likeProgress: '#likeProgress',
+  commentProgress: '#commentProgress',
+  progressFill: '#progressFill',
+};
 
-    const commentBtn = document.getElementById('commentBtn');
-    if (commentBtn) {
-      commentBtn.addEventListener('click', () => this.handleComment());
-    }
-  },
+const EVENTS = {
+  SUBSCRIBE: 'download:subscribe',
+  LIKE: 'download:like',
+  COMMENT: 'download:comment',
+  VERIFY: 'download:verify',
+  COMPLETE: 'download:complete',
+};
 
-  handleSubscribe() {
-    this.completed.subscribe = true;
-    this.showToast('🎉 Cảm ơn bạn đã đăng ký kênh!', 'success');
-    
-    const subscribeBtn = document.getElementById('subscribeBtn');
-    subscribeBtn.disabled = true;
-    subscribeBtn.classList.add('completed');
-    subscribeBtn.innerHTML = '<i class="fas fa-check"></i> Đã Đăng Ký';
+/* ============================================
+   LOGGER - LOGGING SYSTEM
+   ============================================ */
 
-    setTimeout(() => this.showStep(2), 1200);
-  },
+const Logger = (() => {
+  const log = (message, data = null, level = 'info') => {
+    if (!CONFIG.debug) return;
 
-  handleLike() {
-    if (this.completed.like) return;
-    
-    this.completed.like = true;
-    this.showToast('👍 Cảm ơn bạn đã like video!', 'success');
-    
-    const likeBtn = document.getElementById('likeBtn');
-    likeBtn.disabled = true;
-    likeBtn.classList.add('completed');
-    likeBtn.innerHTML = '<i class="fas fa-check"></i> Đã Like';
+    const timestamp = new Date().toLocaleTimeString();
+    const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
 
-    const likeProgress = document.getElementById('likeProgress');
-    likeProgress.classList.add('completed');
-    likeProgress.querySelector('.status').textContent = '✓ Đã Hoàn Thành';
-
-    this.checkStep2Completed();
-  },
-
-  handleComment() {
-    if (this.completed.comment) return;
-
-    this.completed.comment = true;
-    this.showToast('💬 Cảm ơn bạn đã comment!', 'success');
-    
-    const commentBtn = document.getElementById('commentBtn');
-    commentBtn.disabled = true;
-    commentBtn.classList.add('completed');
-    commentBtn.innerHTML = '<i class="fas fa-check"></i> Đã Comment';
-
-    const commentProgress = document.getElementById('commentProgress');
-    commentProgress.classList.add('completed');
-    commentProgress.querySelector('.status').textContent = '✓ Đã Hoàn Thành';
-
-    this.checkStep2Completed();
-  },
-
-  checkStep2Completed() {
-    if (this.completed.like && this.completed.comment) {
-      setTimeout(() => {
-        this.showToast('🚀 Đang xác minh...', 'info');
-        this.showStep(3);
-      }, 800);
-    }
-  },
-
-  showStep(stepNumber) {
-    this.currentStep = stepNumber;
-    
-    document.querySelectorAll('.download-step').forEach(step => {
-      step.classList.remove('active');
-    });
-
-    const currentStepEl = document.getElementById(`step${stepNumber}`);
-    if (currentStepEl) {
-      currentStepEl.offsetHeight;
-      currentStepEl.classList.add('active');
-
-      if (stepNumber === 3) {
-        this.handleVerificationStep();
-      } else if (stepNumber === 4) {
-        this.handleDownloadStep();
-      }
-    }
-  },
-
-  handleVerificationStep() {
-    const progressFill = document.getElementById('progressFill');
-    if (!progressFill) return;
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 25;
-      if (progress > 100) progress = 100;
-      
-      progressFill.style.width = progress + '%';
-
-      if (progress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          this.showToast('✓ Xác minh thành công!', 'success');
-          this.showStep(4);
-        }, 800);
-      }
-    }, 500);
-  },
-
-  handleDownloadStep() {
-    console.log('Download step completed');
-  },
-
-  showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    const toastMessage = toast.querySelector('.toast-message');
-    const toastIcon = toast.querySelector('.toast-icon');
-
-    toastMessage.textContent = message;
-    
-    toast.classList.remove('error', 'info', 'success', 'show');
-
-    switch(type) {
-      case 'success':
-        toastIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
-        toast.classList.add('success');
-        break;
+    switch(level) {
       case 'error':
-        toastIcon.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
-        toast.classList.add('error');
+        console.error(`${prefix}`, message, data);
+        break;
+      case 'warn':
+        console.warn(`${prefix}`, message, data);
+        break;
+      case 'success':
+        console.log(`%c${prefix}`, 'color: green;', message, data);
         break;
       default:
-        toastIcon.innerHTML = '<i class="fas fa-info-circle"></i>';
-        toast.classList.add('info');
+        console.log(`%c${prefix}`, 'color: blue;', message, data);
     }
+  };
 
-    setTimeout(() => toast.classList.add('show'), 50);
-    setTimeout(() => toast.classList.remove('show'), 3500);
-  },
-
-  reset() {
-    this.currentStep = 1;
-    this.completed = {
-      subscribe: false,
-      like: false,
-      comment: false
-    };
-
-    const subscribeBtn = document.getElementById('subscribeBtn');
-    if (subscribeBtn) {
-      subscribeBtn.disabled = false;
-      subscribeBtn.classList.remove('completed');
-      subscribeBtn.innerHTML = '<i class="fab fa-youtube"></i> Đăng Ký Ngay';
-    }
-
-    const likeBtn = document.getElementById('likeBtn');
-    if (likeBtn) {
-      likeBtn.disabled = false;
-      likeBtn.classList.remove('completed');
-      likeBtn.innerHTML = '<i class="fas fa-thumbs-up"></i> <span>Like Video</span>';
-    }
-
-    const commentBtn = document.getElementById('commentBtn');
-    if (commentBtn) {
-      commentBtn.disabled = false;
-      commentBtn.classList.remove('completed');
-      commentBtn.innerHTML = '<i class="fas fa-comment"></i> <span>Comment Video</span>';
-    }
-
-    document.querySelectorAll('.progress-item').forEach(item => {
-      item.classList.remove('completed');
-      item.querySelector('.status').textContent = 'Chưa hoàn thành';
-    });
-
-    this.showStep(1);
-    this.showToast('Đã reset flow', 'info');
-  }
-};
+  return {
+    info: (msg, data) => log(msg, data, 'info'),
+    error: (msg, data) => log(msg, data, 'error'),
+    warn: (msg, data) => log(msg, data, 'warn'),
+    success: (msg, data) => log(msg, data, 'success'),
+  };
+})();
 
 /* ============================================
-   COUNTER ANIMATION
+   EVENT EMITTER - PUBLISH/SUBSCRIBE PATTERN
    ============================================ */
 
-function animateCounter() {
-  const counters = document.querySelectorAll('[data-target]');
-  
-  counters.forEach(counter => {
-    const updateCount = () => {
-      const target = +counter.getAttribute('data-target');
-      const current = +counter.innerText;
-      const increment = target / 100;
+const EventEmitter = (() => {
+  const events = {};
 
-      if (current < target) {
-        counter.innerText = Math.ceil(current + increment);
-        setTimeout(updateCount, 20);
-      } else {
-        counter.innerText = target;
-      }
-    };
-
-    updateCount();
-  });
-}
-
-const observerOptions = {
-  threshold: 0.5
-};
-
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting && entry.target.classList.contains('hero-stats')) {
-      animateCounter();
-      observer.unobserve(entry.target);
+  const on = (eventName, callback) => {
+    if (!events[eventName]) {
+      events[eventName] = [];
     }
-  });
-}, observerOptions);
+    events[eventName].push(callback);
+    Logger.info(`Event listener registered: ${eventName}`);
+  };
 
-/* ============================================
-   SMOOTH SCROLL NAVIGATION
-   ============================================ */
+  const off = (eventName, callback) => {
+    if (events[eventName]) {
+      events[eventName] = events[eventName].filter(cb => cb !== callback);
+    }
+  };
 
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    const href = this.getAttribute('href');
-    if (href === '#') return;
-    
-    e.preventDefault();
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
+  const emit = (eventName, data) => {
+    Logger.info(`Event emitted: ${eventName}`, data);
+    if (events[eventName]) {
+      events[eventName].forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          Logger.error(`Error in event listener for ${eventName}`, error);
+        }
       });
-
-      const navMenu = document.getElementById('navMenu');
-      if (navMenu && navMenu.classList.contains('active')) {
-        navMenu.classList.remove('active');
-      }
     }
-  });
-});
+  };
+
+  const once = (eventName, callback) => {
+    const wrapper = (data) => {
+      callback(data);
+      off(eventName, wrapper);
+    };
+    on(eventName, wrapper);
+  };
+
+  return { on, off, emit, once };
+})();
 
 /* ============================================
-   MOBILE MENU TOGGLE
+   STORAGE MANAGER - LOCAL STORAGE WITH EXPIRY
    ============================================ */
 
-const navToggle = document.getElementById('navToggle');
-const navMenu = document.getElementById('navMenu');
-
-if (navToggle) {
-  navToggle.addEventListener('click', () => {
-    navMenu.classList.toggle('active');
-  });
-}
-
-document.querySelectorAll('.nav-link').forEach(link => {
-  link.addEventListener('click', () => {
-    navMenu.classList.remove('active');
-  });
-});
-
-/* ============================================
-   BACK TO TOP BUTTON
-   ============================================ */
-
-const backToTopBtn = document.getElementById('backToTop');
-
-if (backToTopBtn) {
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 300) {
-      backToTopBtn.classList.add('show');
-    } else {
-      backToTopBtn.classList.remove('show');
-    }
-  });
-
-  backToTopBtn.addEventListener('click', () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  });
-}
-
-/* ============================================
-   INITIALIZE ON DOM READY
-   ============================================ */
-
-document.addEventListener('DOMContentLoaded', () => {
-  downloadFlow.init();
-
-  // Observe hero stats for animation
-  const heroStats = document.querySelector('.hero-stats');
-  if (heroStats) {
-    observer.observe(heroStats);
-  }
-});
-
-/* ============================================
-   HELPER FUNCTIONS
-   ============================================ */
-
-function showComingSoon() {
-  downloadFlow.showToast('🚀 Tính năng này sắp ra mắt!', 'info');
-}
-
-// Expose for console access
-window.downloadFlow = downloadFlow;
-
-/* ============================================
-   NAVBAR SCROLL EFFECT
-   ============================================ */
-
-window.addEventListener('scroll', () => {
-  const navbar = document.getElementById('navbar');
-  if (window.scrollY > 10) {
-    navbar.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.15)';
-  } else {
-    navbar.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-  }
-});
-
-/* ============================================
-   BUTTON RIPPLE EFFECT (Optional Enhancement)
-   ============================================ */
-
-document.querySelectorAll('.btn').forEach(button => {
-  button.addEventListener('click', function(e) {
-    const rect = this.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const ripple = document.createElement('span');
-    ripple.style.left = x + 'px';
-    ripple.style.top = y + 'px';
-    ripple.style.position = 'absolute';
-    ripple.style.width = '20px';
-    ripple.style.height = '20px';
-    ripple.style.background = 'rgba(255, 255, 255, 0.5)';
-    ripple.style.borderRadius = '50%';
-    ripple.style.transform = 'scale(0)';
-    ripple.style.animation = 'ripple 0.6s ease-out';
-    ripple.style.pointerEvents = 'none';
-
-    if (!this.style.position || this.style.position === 'static') {
-      this.style.position = 'relative';
-      this.style.overflow = 'hidden';
-    }
-
-    this.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
-  });
-});
-
-/* ============================================
-   FORM VALIDATION (If needed in future)
-   ============================================ */
-
-function validateForm(formData) {
-  if (!formData.name || formData.name.trim() === '') {
-    return { valid: false, message: 'Vui lòng nhập tên' };
-  }
-  if (!formData.email || !formData.email.includes('@')) {
-    return { valid: false, message: 'Vui lòng nhập email hợp lệ' };
-  }
-  return { valid: true, message: 'Thành công' };
-}
-
-/* ============================================
-   LOCAL STORAGE HELPERS
-   ============================================ */
-
-const Storage = {
-  set(key, value) {
+const StorageManager = (() => {
+  const set = (key, value, duration = CONFIG.cache_duration) => {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const data = {
+        value,
+        timestamp: Date.now(),
+        duration,
+      };
+      localStorage.setItem(key, JSON.stringify(data));
+      Logger.success(`Storage set: ${key}`);
       return true;
-    } catch (e) {
-      console.error('Storage error:', e);
+    } catch (error) {
+      Logger.error(`Storage set error: ${key}`, error);
       return false;
     }
-  },
+  };
 
-  get(key) {
+  const get = (key) => {
     try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
-    } catch (e) {
-      console.error('Storage error:', e);
+      const data = JSON.parse(localStorage.getItem(key));
+      
+      if (!data) return null;
+
+      // Check if expired
+      if (Date.now() - data.timestamp > data.duration) {
+        remove(key);
+        Logger.warn(`Storage key expired: ${key}`);
+        return null;
+      }
+
+      Logger.info(`Storage retrieved: ${key}`);
+      return data.value;
+    } catch (error) {
+      Logger.error(`Storage get error: ${key}`, error);
       return null;
     }
-  },
+  };
 
-  remove(key) {
+  const remove = (key) => {
     try {
       localStorage.removeItem(key);
+      Logger.success(`Storage removed: ${key}`);
       return true;
-    } catch (e) {
-      console.error('Storage error:', e);
+    } catch (error) {
+      Logger.error(`Storage remove error: ${key}`, error);
       return false;
     }
-  },
+  };
 
-  clear() {
+  const clear = () => {
     try {
       localStorage.clear();
+      Logger.success('Storage cleared');
       return true;
-    } catch (e) {
-      console.error('Storage error:', e);
+    } catch (error) {
+      Logger.error('Storage clear error', error);
       return false;
     }
-  }
-};
+  };
+
+  return { set, get, remove, clear };
+})();
 
 /* ============================================
-   ANALYTICS TRACKING (Optional)
+   DOM MANAGER - SAFE DOM MANIPULATION
    ============================================ */
 
-const Analytics = {
-  trackEvent(eventName, eventData = {}) {
-    console.log(`Event: ${eventName}`, eventData);
-    // Add your analytics integration here
-  },
+const DOMManager = (() => {
+  const query = (selector) => {
+    try {
+      return document.querySelector(selector);
+    } catch (error) {
+      Logger.error(`Query selector error: ${selector}`, error);
+      return null;
+    }
+  };
 
-  trackPageView(page) {
-    console.log(`Page view: ${page}`);
-    // Add your analytics integration here
-  }
-};
+  const queryAll = (selector) => {
+    try {
+      return document.querySelectorAll(selector);
+    } catch (error) {
+      Logger.error(`QueryAll selector error: ${selector}`, error);
+      return [];
+    }
+  };
+
+  const addClass = (element, className) => {
+    if (element && typeof element.classList !== 'undefined') {
+      element.classList.add(className);
+    }
+  };
+
+  const removeClass = (element, className) => {
+    if (element && typeof element.classList !== 'undefined') {
+      element.classList.remove(className);
+    }
+  };
+
+  const toggleClass = (element, className) => {
+    if (element && typeof element.classList !== 'undefined') {
+      element.classList.toggle(className);
+    }
+  };
+
+  const hasClass = (element, className) => {
+    if (element && typeof element.classList !== 'undefined') {
+      return element.classList.contains(className);
+    }
+    return false;
+  };
+
+  const setText = (element, text) => {
+    if (element) {
+      element.textContent = text;
+    }
+  };
+
+  const setHTML = (element, html) => {
+    if (element) {
+      element.innerHTML = html;
+    }
+  };
+
+  const setAttribute = (element, attr, value) => {
+    if (element) {
+      element.setAttribute(attr, value);
+    }
+  };
+
+  const removeAttribute = (element, attr) => {
+    if (element) {
+      element.removeAttribute(attr);
+    }
+  };
+
+  const on = (element, event, callback, options = {}) => {
+    if (element) {
+      element.addEventListener(event, callback, options);
+    }
+  };
+
+  const off = (element, event, callback) => {
+    if (element) {
+      element.removeEventListener(event, callback);
+    }
+  };
+
+  return {
+    query,
+    queryAll,
+    addClass,
+    removeClass,
+    toggleClass,
+    hasClass,
+    setText,
+    setHTML,
+    setAttribute,
+    removeAttribute,
+    on,
+    off,
+  };
+})();
 
 /* ============================================
-   PERFORMANCE MONITORING
+   UTILITY FUNCTIONS - HELPER METHODS
    ============================================ */
 
-if (window.performance && window.performance.timing) {
-  window.addEventListener('load', () => {
-    const perfData = window.performance.timing;
-    const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-    console.log(`Page load time: ${pageLoadTime}ms`);
-  });
-}
-
-/* ============================================
-   ERROR HANDLING
-   ============================================ */
-
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
-});
-
-/* ============================================
-   UTILITY FUNCTIONS
-   ============================================ */
-
-const Utils = {
-  // Debounce function
-  debounce(func, wait) {
+const Utils = (() => {
+  const debounce = (func, wait = CONFIG.debounce_delay) => {
     let timeout;
     return function executedFunction(...args) {
       const later = () => {
@@ -496,10 +308,9 @@ const Utils = {
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
     };
-  },
+  };
 
-  // Throttle function
-  throttle(func, limit) {
+  const throttle = (func, limit = CONFIG.throttle_delay) => {
     let inThrottle;
     return function(...args) {
       if (!inThrottle) {
@@ -508,31 +319,34 @@ const Utils = {
         setTimeout(() => inThrottle = false, limit);
       }
     };
-  },
+  };
 
-  // Get URL parameters
-  getUrlParam(name) {
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const getUrlParam = (name) => {
     const url = new URL(window.location);
     return url.searchParams.get(name);
-  },
+  };
 
-  // Copy to clipboard
-  copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      console.log('Copied to clipboard');
-    });
-  },
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      Logger.success('Copied to clipboard');
+      return true;
+    } catch (error) {
+      Logger.error('Copy to clipboard failed', error);
+      return false;
+    }
+  };
 
-  // Format currency
-  formatCurrency(value, currency = 'VND') {
+  const formatCurrency = (value, currency = 'VND') => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: currency
     }).format(value);
-  },
+  };
 
-  // Format date
-  formatDate(date, format = 'DD/MM/YYYY') {
+  const formatDate = (date, format = 'DD/MM/YYYY') => {
     const d = new Date(date);
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -542,20 +356,600 @@ const Utils = {
       .replace('DD', day)
       .replace('MM', month)
       .replace('YYYY', year);
-  }
-};
+  };
 
-// Add ripple animation keyframe if not exists
-if (!document.getElementById('ripple-styles')) {
-  const style = document.createElement('style');
-  style.id = 'ripple-styles';
-  style.textContent = `
-    @keyframes ripple {
-      to {
-        transform: scale(4);
-        opacity: 0;
+  const isEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const isPhone = (phone) => {
+    const regex = /^[0-9]{10,}$/;
+    return regex.test(phone.replace(/\D/g, ''));
+  };
+
+  const isEmpty = (value) => {
+    return value === null || value === undefined || value === '';
+  };
+
+  const random = (min, max) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  return {
+    debounce,
+    throttle,
+    delay,
+    getUrlParam,
+    copyToClipboard,
+    formatCurrency,
+    formatDate,
+    isEmail,
+    isPhone,
+    isEmpty,
+    random,
+  };
+})();
+
+/* ============================================
+   NOTIFICATION MANAGER - TOAST SYSTEM
+   ============================================ */
+
+const NotificationManager = (() => {
+  let toastQueue = [];
+  let isShowing = false;
+
+  const show = async (message, type = 'info') => {
+    return new Promise((resolve) => {
+      toastQueue.push({ message, type, resolve });
+      processQueue();
+    });
+  };
+
+  const processQueue = async () => {
+    if (isShowing || toastQueue.length === 0) return;
+
+    isShowing = true;
+    const { message, type, resolve } = toastQueue.shift();
+
+    const toast = DOMManager.query(SELECTORS.toast);
+    if (!toast) {
+      isShowing = false;
+      resolve();
+      return;
+    }
+
+    const toastMessage = toast.querySelector('.toast-message');
+    const toastIcon = toast.querySelector('.toast-icon');
+
+    // Set content
+    DOMManager.setText(toastMessage, message);
+
+    // Set icon
+    let iconHTML = '';
+    switch(type) {
+      case 'success':
+        iconHTML = '<i class="fas fa-check-circle"></i>';
+        break;
+      case 'error':
+        iconHTML = '<i class="fas fa-exclamation-circle"></i>';
+        break;
+      case 'warning':
+        iconHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        break;
+      default:
+        iconHTML = '<i class="fas fa-info-circle"></i>';
+    }
+    DOMManager.setHTML(toastIcon, iconHTML);
+
+    // Remove old classes
+    DOMManager.removeClass(toast, 'success');
+    DOMManager.removeClass(toast, 'error');
+    DOMManager.removeClass(toast, 'warning');
+    DOMManager.removeClass(toast, 'info');
+
+    // Add type class
+    DOMManager.addClass(toast, type);
+
+    // Show toast
+    await Utils.delay(50);
+    DOMManager.addClass(toast, 'show');
+
+    // Hide after duration
+    await Utils.delay(CONFIG.toast_duration);
+    DOMManager.removeClass(toast, 'show');
+
+    await Utils.delay(CONFIG.animation_duration);
+    isShowing = false;
+    processQueue();
+    resolve();
+  };
+
+  return {
+    success: (msg) => show(msg, 'success'),
+    error: (msg) => show(msg, 'error'),
+    warning: (msg) => show(msg, 'warning'),
+    info: (msg) => show(msg, 'info'),
+  };
+})();
+
+/* ============================================
+   DOWNLOAD FLOW - MAIN APPLICATION STATE
+   ============================================ */
+
+const DownloadFlow = (() => {
+  let state = {
+    currentStep: 1,
+    completed: {
+      subscribe: false,
+      like: false,
+      comment: false,
+    },
+    startTime: null,
+    completedTime: null,
+  };
+
+  const getState = () => ({ ...state });
+
+  const setState = (updates) => {
+    state = { ...state, ...updates };
+    Logger.info('State updated', state);
+    EventEmitter.emit('state:changed', state);
+  };
+
+  const init = () => {
+    Logger.info('DownloadFlow initialized');
+    setupEventListeners();
+    showStep(1);
+    state.startTime = Date.now();
+  };
+
+  const setupEventListeners = () => {
+    const subscribeBtn = DOMManager.query(SELECTORS.subscribeBtn);
+    const likeBtn = DOMManager.query(SELECTORS.likeBtn);
+    const commentBtn = DOMManager.query(SELECTORS.commentBtn);
+
+    if (subscribeBtn) {
+      DOMManager.on(subscribeBtn, 'click', (e) => {
+        e.preventDefault();
+        handleSubscribe();
+      });
+    }
+
+    if (likeBtn) {
+      DOMManager.on(likeBtn, 'click', handleLike);
+    }
+
+    if (commentBtn) {
+      DOMManager.on(commentBtn, 'click', handleComment);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    Logger.info('Subscribe clicked');
+    
+    setState({
+      completed: {
+        ...state.completed,
+        subscribe: true,
+      },
+    });
+
+    const subscribeBtn = DOMManager.query(SELECTORS.subscribeBtn);
+    if (subscribeBtn) {
+      DOMManager.setAttribute(subscribeBtn, 'disabled', 'true');
+      DOMManager.addClass(subscribeBtn, 'completed');
+      DOMManager.setHTML(subscribeBtn, '<i class="fas fa-check"></i> Đã Đăng Ký');
+    }
+
+    await NotificationManager.success('🎉 Cảm ơn bạn đã đăng ký kênh!');
+    EventEmitter.emit(EVENTS.SUBSCRIBE, { timestamp: Date.now() });
+
+    await Utils.delay(1000);
+    showStep(2);
+  };
+
+  const handleLike = async () => {
+    if (state.completed.like) return;
+
+    Logger.info('Like clicked');
+
+    setState({
+      completed: {
+        ...state.completed,
+        like: true,
+      },
+    });
+
+    const likeBtn = DOMManager.query(SELECTORS.likeBtn);
+    if (likeBtn) {
+      DOMManager.setAttribute(likeBtn, 'disabled', 'true');
+      DOMManager.addClass(likeBtn, 'completed');
+      DOMManager.setHTML(likeBtn, '<i class="fas fa-check"></i> Đã Like');
+    }
+
+    const likeProgress = DOMManager.query(SELECTORS.likeProgress);
+    if (likeProgress) {
+      DOMManager.addClass(likeProgress, 'completed');
+      const statusEl = likeProgress.querySelector('.status');
+      if (statusEl) {
+        DOMManager.setText(statusEl, '✓ Đã Hoàn Thành');
       }
     }
-  `;
-  document.head.appendChild(style);
+
+    await NotificationManager.success('👍 Cảm ơn bạn đã like video!');
+    EventEmitter.emit(EVENTS.LIKE, { timestamp: Date.now() });
+
+    checkStep2Completed();
+  };
+
+  const handleComment = async () => {
+    if (state.completed.comment) return;
+
+    Logger.info('Comment clicked');
+
+    setState({
+      completed: {
+        ...state.completed,
+        comment: true,
+      },
+    });
+
+    const commentBtn = DOMManager.query(SELECTORS.commentBtn);
+    if (commentBtn) {
+      DOMManager.setAttribute(commentBtn, 'disabled', 'true');
+      DOMManager.addClass(commentBtn, 'completed');
+      DOMManager.setHTML(commentBtn, '<i class="fas fa-check"></i> Đã Comment');
+    }
+
+    const commentProgress = DOMManager.query(SELECTORS.commentProgress);
+    if (commentProgress) {
+      DOMManager.addClass(commentProgress, 'completed');
+      const statusEl = commentProgress.querySelector('.status');
+      if (statusEl) {
+        DOMManager.setText(statusEl, '✓ Đã Hoàn Thành');
+      }
+    }
+
+    await NotificationManager.success('💬 Cảm ơn bạn đã comment!');
+    EventEmitter.emit(EVENTS.COMMENT, { timestamp: Date.now() });
+
+    checkStep2Completed();
+  };
+
+  const checkStep2Completed = async () => {
+    const { like, comment } = state.completed;
+    if (like && comment) {
+      await Utils.delay(800);
+      await NotificationManager.info('🚀 Đang xác minh...');
+      showStep(3);
+    }
+  };
+
+  const showStep = (stepNumber) => {
+    Logger.info(`Showing step: ${stepNumber}`);
+    setState({ currentStep: stepNumber });
+
+    const steps = DOMManager.queryAll(SELECTORS.downloadStep);
+    steps.forEach(step => {
+      DOMManager.removeClass(step, 'active');
+    });
+
+    const currentStep = DOMManager.query(`#step${stepNumber}`);
+    if (currentStep) {
+      // Force reflow for animation
+      currentStep.offsetHeight;
+      DOMManager.addClass(currentStep, 'active');
+
+      if (stepNumber === 3) {
+        handleVerificationStep();
+      } else if (stepNumber === 4) {
+        handleDownloadStep();
+      }
+    }
+  };
+
+  const handleVerificationStep = async () => {
+    Logger.info('Verification step started');
+    
+    const progressFill = DOMManager.query(SELECTORS.progressFill);
+    if (!progressFill) return;
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Utils.random(15, 35);
+      if (progress > 100) progress = 100;
+      
+      progressFill.style.width = progress + '%';
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        Logger.info('Verification completed');
+        finishVerification();
+      }
+    }, 500);
+  };
+
+  const finishVerification = async () => {
+    await Utils.delay(800);
+    await NotificationManager.success('✓ Xác minh thành công!');
+    EventEmitter.emit(EVENTS.VERIFY, { timestamp: Date.now() });
+
+    setState({ completedTime: Date.now() });
+    showStep(4);
+    EventEmitter.emit(EVENTS.COMPLETE, { state });
+  };
+
+  const handleDownloadStep = () => {
+    Logger.info('Download step displayed');
+  };
+
+  const reset = async () => {
+    Logger.warn('Resetting download flow');
+
+    const subscribeBtn = DOMManager.query(SELECTORS.subscribeBtn);
+    if (subscribeBtn) {
+      DOMManager.removeAttribute(subscribeBtn, 'disabled');
+      DOMManager.removeClass(subscribeBtn, 'completed');
+      DOMManager.setHTML(subscribeBtn, '<i class="fab fa-youtube"></i> Đăng Ký Ngay');
+    }
+
+    const likeBtn = DOMManager.query(SELECTORS.likeBtn);
+    if (likeBtn) {
+      DOMManager.removeAttribute(likeBtn, 'disabled');
+      DOMManager.removeClass(likeBtn, 'completed');
+      DOMManager.setHTML(likeBtn, '<i class="fas fa-thumbs-up"></i> <span>Like Video</span>');
+    }
+
+    const commentBtn = DOMManager.query(SELECTORS.commentBtn);
+    if (commentBtn) {
+      DOMManager.removeAttribute(commentBtn, 'disabled');
+      DOMManager.removeClass(commentBtn, 'completed');
+      DOMManager.setHTML(commentBtn, '<i class="fas fa-comment"></i> <span>Comment Video</span>');
+    }
+
+    const progressItems = DOMManager.queryAll('.progress-item');
+    progressItems.forEach(item => {
+      DOMManager.removeClass(item, 'completed');
+      const statusEl = item.querySelector('.status');
+      if (statusEl) {
+        DOMManager.setText(statusEl, 'Chưa hoàn thành');
+      }
+    });
+
+    setState({
+      currentStep: 1,
+      completed: { subscribe: false, like: false, comment: false },
+      startTime: Date.now(),
+      completedTime: null,
+    });
+
+    showStep(1);
+    await NotificationManager.info('Đã reset flow');
+  };
+
+  return {
+    init,
+    showStep,
+    handleSubscribe,
+    handleLike,
+    handleComment,
+    reset,
+    getState,
+  };
+})();
+
+/* ============================================
+   NAVIGATION MANAGER - NAVBAR INTERACTIONS
+   ============================================ */
+
+const NavigationManager = (() => {
+  const init = () => {
+    setupMobileMenu();
+    setupSmoothScroll();
+    setupScrollEffect();
+  };
+
+  const setupMobileMenu = () => {
+    const navToggle = DOMManager.query(SELECTORS.navToggle);
+    const navMenu = DOMManager.query(SELECTORS.navMenu);
+
+    if (navToggle && navMenu) {
+      DOMManager.on(navToggle, 'click', () => {
+        DOMManager.toggleClass(navMenu, 'active');
+      });
+
+      const navLinks = DOMManager.queryAll(SELECTORS.navLink);
+      navLinks.forEach(link => {
+        DOMManager.on(link, 'click', () => {
+          DOMManager.removeClass(navMenu, 'active');
+        });
+      });
+    }
+  };
+
+  const setupSmoothScroll = () => {
+    const links = DOMManager.queryAll('a[href^="#"]');
+    links.forEach(link => {
+      DOMManager.on(link, 'click', (e) => {
+        const href = DOMManager.query(link).getAttribute('href');
+        if (href === '#') return;
+
+        e.preventDefault();
+        const target = DOMManager.query(href);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  };
+
+  const setupScrollEffect = () => {
+    const navbar = DOMManager.query(SELECTORS.navbar);
+    if (!navbar) return;
+
+    const handleScroll = Utils.throttle(() => {
+      if (window.scrollY > 10) {
+        navbar.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.15)';
+      } else {
+        navbar.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+      }
+    });
+
+    window.addEventListener('scroll', handleScroll);
+  };
+
+  return { init };
+})();
+
+/* ============================================
+   STATS COUNTER - ANIMATED NUMBERS
+   ============================================ */
+
+const StatsCounter = (() => {
+  const init = () => {
+    const heroStats = DOMManager.query(SELECTORS.heroStats);
+    if (!heroStats) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          animateCounters();
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    observer.observe(heroStats);
+  };
+
+  const animateCounters = () => {
+    const counters = DOMManager.queryAll('[data-target]');
+    
+    counters.forEach(counter => {
+      const target = parseInt(counter.getAttribute('data-target'));
+      animateCounter(counter, target);
+    });
+  };
+
+  const animateCounter = (element, target) => {
+    let current = 0;
+    const increment = Math.ceil(target / 50);
+    
+    const interval = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        current = target;
+        clearInterval(interval);
+      }
+      DOMManager.setText(element, current);
+    }, 20);
+  };
+
+  return { init };
+})();
+
+/* ============================================
+   SCROLL TO TOP BUTTON
+   ============================================ */
+
+const ScrollToTop = (() => {
+  const init = () => {
+    const btn = DOMManager.query(SELECTORS.backToTop);
+    if (!btn) return;
+
+    const handleScroll = Utils.throttle(() => {
+      if (window.scrollY > 300) {
+        DOMManager.addClass(btn, 'show');
+      } else {
+        DOMManager.removeClass(btn, 'show');
+      }
+    });
+
+    window.addEventListener('scroll', handleScroll);
+
+    DOMManager.on(btn, 'click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  return { init };
+})();
+
+/* ============================================
+   APP INITIALIZATION
+   ============================================ */
+
+const App = (() => {
+  const init = () => {
+    Logger.info('Application starting', { version: CONFIG.version });
+
+    // Initialize all modules
+    DownloadFlow.init();
+    NavigationManager.init();
+    StatsCounter.init();
+    ScrollToTop.init();
+
+    // Setup global event listeners
+    setupGlobalErrorHandling();
+    setupPerformanceMonitoring();
+
+    Logger.success('Application initialized successfully');
+    EventEmitter.emit('app:ready');
+  };
+
+  const setupGlobalErrorHandling = () => {
+    window.addEventListener('error', (event) => {
+      Logger.error('Global error caught', event.error);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      Logger.error('Unhandled promise rejection', event.reason);
+    });
+  };
+
+  const setupPerformanceMonitoring = () => {
+    if (window.performance && window.performance.timing) {
+      window.addEventListener('load', () => {
+        const perfData = window.performance.timing;
+        const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+        Logger.info(`Page load time: ${pageLoadTime}ms`);
+      });
+    }
+  };
+
+  return { init };
+})();
+
+/* ============================================
+   DOM READY & INITIALIZATION
+   ============================================ */
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+  });
+} else {
+  App.init();
 }
+
+/* ============================================
+   GLOBAL EXPORTS - PUBLIC API
+   ============================================ */
+
+window.NiCueApp = {
+  version: CONFIG.version,
+  DownloadFlow,
+  Utils,
+  StorageManager,
+  DOMManager,
+  NotificationManager,
+  Logger,
+  EventEmitter,
+  reset: () => DownloadFlow.reset(),
+  getState: () => DownloadFlow.getState(),
+};
+
+// For console access
+window.downloadFlow = DownloadFlow;
+window.app = App;
