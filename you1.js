@@ -1,6 +1,6 @@
 /* ============================================
    NICUE VN - PROFESSIONAL APPLICATION CORE
-   Version: 1.0.0
+   Version: 1.0.1 - YouTube Integration
    ============================================ */
 
 'use strict';
@@ -10,15 +10,18 @@
    ============================================ */
 
 const CONFIG = {
-  version: '1.0.0',
+  version: '1.0.1',
   app_name: 'NiCue VN',
   debug: false,
   api_timeout: 5000,
-  cache_duration: 3600000, // 1 hour
+  cache_duration: 3600000,
   toast_duration: 3500,
   animation_duration: 300,
   debounce_delay: 300,
   throttle_delay: 100,
+  // YouTube Links
+  youtube_channel: 'https://www.youtube.com/@NiCueeVN?sub_confirmation=1',
+  youtube_video: 'https://youtu.be/VoExC_1GX-E?si=UdDQ54JgLmtH-Lq3',
 };
 
 const SELECTORS = {
@@ -153,7 +156,6 @@ const StorageManager = (() => {
       
       if (!data) return null;
 
-      // Check if expired
       if (Date.now() - data.timestamp > data.duration) {
         remove(key);
         Logger.warn(`Storage key expired: ${key}`);
@@ -376,6 +378,16 @@ const Utils = (() => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
+  const openInNewTab = (url) => {
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+    } else {
+      Logger.warn('Popup blocked, attempting redirect');
+      window.location.href = url;
+    }
+  };
+
   return {
     debounce,
     throttle,
@@ -388,6 +400,7 @@ const Utils = (() => {
     isPhone,
     isEmpty,
     random,
+    openInNewTab,
   };
 })();
 
@@ -422,10 +435,8 @@ const NotificationManager = (() => {
     const toastMessage = toast.querySelector('.toast-message');
     const toastIcon = toast.querySelector('.toast-icon');
 
-    // Set content
     DOMManager.setText(toastMessage, message);
 
-    // Set icon
     let iconHTML = '';
     switch(type) {
       case 'success':
@@ -442,20 +453,16 @@ const NotificationManager = (() => {
     }
     DOMManager.setHTML(toastIcon, iconHTML);
 
-    // Remove old classes
     DOMManager.removeClass(toast, 'success');
     DOMManager.removeClass(toast, 'error');
     DOMManager.removeClass(toast, 'warning');
     DOMManager.removeClass(toast, 'info');
 
-    // Add type class
     DOMManager.addClass(toast, type);
 
-    // Show toast
     await Utils.delay(50);
     DOMManager.addClass(toast, 'show');
 
-    // Hide after duration
     await Utils.delay(CONFIG.toast_duration);
     DOMManager.removeClass(toast, 'show');
 
@@ -499,7 +506,7 @@ const DownloadFlow = (() => {
 
   const init = () => {
     Logger.info('DownloadFlow initialized');
-    hideAllSteps(); // Hide all steps first
+    hideAllSteps();
     setupEventListeners();
     showStep(1);
     state.startTime = Date.now();
@@ -525,17 +532,29 @@ const DownloadFlow = (() => {
     }
 
     if (likeBtn) {
-      DOMManager.on(likeBtn, 'click', handleLike);
+      DOMManager.on(likeBtn, 'click', (e) => {
+        e.preventDefault();
+        handleLike();
+      });
     }
 
     if (commentBtn) {
-      DOMManager.on(commentBtn, 'click', handleComment);
+      DOMManager.on(commentBtn, 'click', (e) => {
+        e.preventDefault();
+        handleComment();
+      });
     }
   };
 
   const handleSubscribe = async () => {
-    Logger.info('Subscribe clicked');
+    Logger.info('Subscribe clicked - Opening YouTube channel');
     
+    // Mở kênh YouTube trong tab mới
+    Utils.openInNewTab(CONFIG.youtube_channel);
+
+    // Đợi một chút để người dùng chuyển qua tab mới
+    await Utils.delay(500);
+
     setState({
       completed: {
         ...state.completed,
@@ -560,7 +579,13 @@ const DownloadFlow = (() => {
   const handleLike = async () => {
     if (state.completed.like) return;
 
-    Logger.info('Like clicked');
+    Logger.info('Like clicked - Opening YouTube video');
+
+    // Mở video YouTube trong tab mới
+    Utils.openInNewTab(CONFIG.youtube_video);
+
+    // Đợi một chút
+    await Utils.delay(500);
 
     setState({
       completed: {
@@ -594,7 +619,13 @@ const DownloadFlow = (() => {
   const handleComment = async () => {
     if (state.completed.comment) return;
 
-    Logger.info('Comment clicked');
+    Logger.info('Comment clicked - Opening YouTube video');
+
+    // Mở video YouTube trong tab mới
+    Utils.openInNewTab(CONFIG.youtube_video);
+
+    // Đợi một chút
+    await Utils.delay(500);
 
     setState({
       completed: {
@@ -645,7 +676,6 @@ const DownloadFlow = (() => {
 
     const currentStep = DOMManager.query(`#step${stepNumber}`);
     if (currentStep) {
-      // Force reflow for animation
       currentStep.offsetHeight;
       DOMManager.addClass(currentStep, 'active');
 
@@ -780,7 +810,7 @@ const NavigationManager = (() => {
     const links = DOMManager.queryAll('a[href^="#"]');
     links.forEach(link => {
       DOMManager.on(link, 'click', (e) => {
-        const href = DOMManager.query(link).getAttribute('href');
+        const href = link.getAttribute('href');
         if (href === '#') return;
 
         e.preventDefault();
@@ -892,13 +922,11 @@ const App = (() => {
   const init = () => {
     Logger.info('Application starting', { version: CONFIG.version });
 
-    // Initialize all modules
     DownloadFlow.init();
     NavigationManager.init();
     StatsCounter.init();
     ScrollToTop.init();
 
-    // Setup global event listeners
     setupGlobalErrorHandling();
     setupPerformanceMonitoring();
 
@@ -956,8 +984,11 @@ window.NiCueApp = {
   EventEmitter,
   reset: () => DownloadFlow.reset(),
   getState: () => DownloadFlow.getState(),
+  config: {
+    youtubeChannel: CONFIG.youtube_channel,
+    youtubeVideo: CONFIG.youtube_video,
+  }
 };
 
-// For console access
 window.downloadFlow = DownloadFlow;
 window.app = App;
