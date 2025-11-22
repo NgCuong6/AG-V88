@@ -499,9 +499,17 @@ const DownloadFlow = (() => {
 
   const init = () => {
     Logger.info('DownloadFlow initialized');
+    hideAllSteps(); // Hide all steps first
     setupEventListeners();
     showStep(1);
     state.startTime = Date.now();
+  };
+
+  const hideAllSteps = () => {
+    const steps = DOMManager.queryAll(SELECTORS.downloadStep);
+    steps.forEach(step => {
+      DOMManager.removeClass(step, 'active');
+    });
   };
 
   const setupEventListeners = () => {
